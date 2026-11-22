@@ -1,3 +1,5 @@
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 // Hero title word-by-word blur reveal
 (function(){
   const h=document.getElementById('heroTitle');
@@ -63,6 +65,7 @@ document.querySelectorAll('#heroTitle .w').forEach(w=>{ if(w.textContent.include
 (function(){
   const words=['أحلّل السجلات وأكشف التهديدات','أبني أدوات بـ Python','أصمّم صفحات ويب تفاعلية','أتعلّم كل يوم شي جديد'];
   const el=document.getElementById('typed'); let wi=0,ci=0,del=false;
+  if(reduceMotion){el.textContent=words[0];return}
   (function tick(){
     const w=words[wi];
     el.textContent=w.slice(0,ci);
@@ -98,7 +101,8 @@ document.querySelectorAll('.magnetic').forEach(b=>{
 document.querySelectorAll('.tilt').forEach(card=>{
   card.addEventListener('mousemove',e=>{
     const r=card.getBoundingClientRect(), x=(e.clientX-r.left)/r.width, y=(e.clientY-r.top)/r.height;
-    card.style.transform=`perspective(900px) rotateY(${(x-.5)*8}deg) rotateX(${(.5-y)*8}deg) translateY(-6px)`;
+    const k=card.classList.contains('feat')?3:8;
+    card.style.transform=`perspective(900px) rotateY(${(x-.5)*k}deg) rotateX(${(.5-y)*k}deg) translateY(-6px)`;
     card.style.setProperty('--mx',x*100+'%'); card.style.setProperty('--my',y*100+'%');
   });
   card.addEventListener('mouseleave',()=>card.style.transform='');
@@ -118,3 +122,49 @@ addEventListener('scroll',()=>{
   let cur=-1; secs.forEach((s,i)=>{ if(s && s.getBoundingClientRect().top<innerHeight*.4) cur=i; });
   navLinks.forEach((a,i)=>a.classList.toggle('active',i===cur));
 },{passive:true});
+
+// Theme toggle (dark default, remembers choice)
+(function(){
+  const btn=document.getElementById('themeToggle'), root=document.documentElement;
+  const sync=()=>{const light=root.dataset.theme==='light';btn.textContent=light?'☾':'☀';
+    document.querySelector('meta[name="theme-color"]').content=light?'#ffffff':'#06080b'};
+  sync();
+  btn.addEventListener('click',()=>{
+    root.dataset.theme=root.dataset.theme==='light'?'dark':'light';
+    try{localStorage.setItem('theme',root.dataset.theme)}catch(e){}
+    sync();
+  });
+})();
+
+// Hero terminal: types each command character by character
+(function(){
+  const body=document.getElementById('termBody'), ghost=document.getElementById('termGhost');
+  if(!body) return;
+  const prompt='<span class="p">anoud@portfolio</span><span class="m">:</span><span class="c">~</span><span class="m">$</span> ';
+  const steps=[
+    {cmd:'whoami', out:'<span class="k">anoud</span> <span class="m">// cybersecurity student</span>'},
+    {cmd:'cat certs.txt', out:'<span class="p">[✓]</span> CEH — Certified Ethical Hacker'},
+    {cmd:'ls ./projects', out:'<span class="c">awj-recruitment/</span>  <span class="c">login-attempt-analyzer/</span>\n<span class="c">digital-garden/</span>  <span class="c">memory-game/</span>'},
+    {cmd:'nmap -sV future.career', out:'443/tcp <span class="p">open</span> opportunities\n<span class="k">0 vulnerabilities found.</span>'}
+  ];
+  const cur='<span class="cur"></span>';
+  const full=steps.map(s=>prompt+s.cmd+'\n'+s.out+'\n').join('\n')+'\n'+prompt+cur;
+  ghost.innerHTML=full;              // reserves the final height so the hero never jumps
+  if(reduceMotion){body.innerHTML=full;return}   // "reduce motion": show everything at once
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  let started=false;
+  const run=async()=>{
+    if(started) return; started=true;
+    let html='';
+    await wait(900);
+    for(const s of steps){
+      html+=prompt;
+      for(let i=1;i<=s.cmd.length;i++){ body.innerHTML=html+s.cmd.slice(0,i)+cur; await wait(55+Math.random()*55); }
+      html+=s.cmd+'\n'; body.innerHTML=html+cur; await wait(300);
+      html+=s.out+'\n\n'; body.innerHTML=html+prompt+cur; await wait(700);
+    }
+    body.innerHTML=html+prompt+cur;
+  };
+  body.innerHTML=prompt+cur;
+  new IntersectionObserver((es,o)=>{ if(es[0].isIntersecting){run();o.disconnect()} }).observe(body);
+})();
